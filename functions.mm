@@ -204,7 +204,7 @@ NAN_METHOD(MyObject::PlusOne) {
         [self.window setFrame:borderFrame display:YES];
     }
     [self showWindow:nil];
-    [self.window orderWindow:NSWindowAbove relativeTo:(NSInteger)windowNumber];
+    [self.window orderWindow:NSWindowAbove relativeTo:((__bridge NSNumber *)windowNumber).integerValue];
 }
 
 @end
