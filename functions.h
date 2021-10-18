@@ -31,4 +31,20 @@ class MyObject : public Nan::ObjectWrap {
     double value_;
 };
 
+class WindowController : public Nan::ObjectWrap {
+  public:
+    static NAN_MODULE_INIT(Init);
+
+  private:
+    explicit WindowController(pid_t windowNumber = 0);
+    ~WindowController();
+
+    static NAN_METHOD(New);
+    static NAN_METHOD(PlusOne);
+    static NAN_METHOD(Show);
+    static Nan::Persistent<v8::Function> constructor;
+    pid_t windowNumber_;
+    void *windowController_;
+};
+
 #endif

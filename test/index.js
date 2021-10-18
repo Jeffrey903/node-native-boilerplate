@@ -3,6 +3,22 @@ var assert = require('assert');
 
 
 describe('native extension', function() {
+  it('should support window stuff', async function() {
+    this.timeout(10_000);
+
+    var obj = new nativeExtension.WindowController(123);
+    obj.show();
+    // assert.equal(obj.show(), 123);
+    await new Promise(r => setTimeout(r, 8_500));
+    setTimeout(() => {
+
+    }, 8_500);
+
+    assert.equal(obj.plusOne(), 124);
+    assert.equal(obj.plusOne(), 125);
+    assert.equal(obj.plusOne(), 126);
+  });
+
   it('should export a wrapped object', function() {
     var obj = new nativeExtension.MyObject(0);
     assert.equal(obj.plusOne(), 1);
@@ -31,7 +47,7 @@ describe('native extension', function() {
   });
 
   it('should export function that returns an object with a key, value pair', function() {
-    assert.deepEqual(nativeExtension.anObject(), {'key': 'value'});
+    assert.deepEqual(nativeExtension.anObject(), {'key': 'value!!'});
   });
 
   it('should export function that returns an array', function() {

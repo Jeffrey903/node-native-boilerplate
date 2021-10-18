@@ -1,5 +1,6 @@
 {
   "main": "index.js",
+  "version": "0.0.2",
   "scripts": {
     "configure": "node-gyp configure",
     "build": "node-gyp build",
