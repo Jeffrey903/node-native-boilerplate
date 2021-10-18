@@ -123,48 +123,88 @@ NAN_METHOD(MyObject::PlusOne) {
 
 @interface BorderWindowController : NSWindowController
 
+@property (strong, nonatomic) NSTimer *timer;
+
 @end
 
 @implementation BorderWindowController
-
-+ (instancetype)sharedInstance
-{
-    static id _sharedInstance = nil;
-    static dispatch_once_t onceToken;
-    dispatch_once(&onceToken, ^{
-        _sharedInstance = [[self alloc] init];
-    });
-
-    return _sharedInstance;
-}
-
-// - (void)dealloc
-// {
-//   NSLog(@"AAAZZZ dealloc");
-// }
 
 - (instancetype)init
 {
     BorderViewController *borderViewController = [[BorderViewController alloc] init];
     NSWindow *window = [NSWindow windowWithContentViewController:borderViewController];
-    window.level = NSFloatingWindowLevel;
-    // window.styleMask = NSWindowStyleMaskBorderless;
-    // window.opaque = NO;
-    // window.backgroundColor = [NSColor clearColor];
-    // window.collectionBehavior = NSWindowCollectionBehaviorTransient;
+    window.styleMask = NSWindowStyleMaskBorderless;
+    window.opaque = NO;
+    window.backgroundColor = [NSColor clearColor];
+    window.collectionBehavior = NSWindowCollectionBehaviorTransient;
 
     self = [super initWithWindow:window];
+    if (self) {
+        self.timer = [NSTimer scheduledTimerWithTimeInterval:1.0/30.0 target:self selector:@selector(positionWindow) userInfo:nil repeats:YES];
+    }
     return self;
 }
 
 - (void)show
 {
     NSLog(@"AAAZZZ show");
-    [self.window setFrame:NSMakeRect(1000, 500, 300, 300) display:YES];
-    [self showWindow:nil];
-    // [self.window orderFrontRegardless];
-    [self.window makeKeyAndOrderFront:nil];
+    // [self.window setFrame:NSMakeRect(1000, 500, 300, 300) display:YES];
+    // [self showWindow:nil];
+    // // [self.window orderFrontRegardless];
+    // [self.window makeKeyAndOrderFront:nil];
     NSLog(@"AAAZZZ show done");
+}
+
+- (void)positionWindow
+{
+    NSArray<NSDictionary<NSString *, id> *> *windowList = CFBridgingRelease(CGWindowListCopyWindowInfo(kCGWindowListOptionOnScreenOnly, kCGNullWindowID));
+
+    NSMutableArray<NSDictionary<NSString *, id> *> *matchingWindows = [NSMutableArray array];
+    for (NSDictionary<NSString *, id> *window in windowList) {
+        NSString *ownerName = window[(__bridge NSString *)kCGWindowOwnerName];
+        if ([ownerName isEqual:@"System Preferences"]) {
+            [matchingWindows addObject:window];
+        }
+    }
+
+    // Find the appropriate System Preferences window (multiple System Preferences windows
+    // may exist, such as when a second smaller window is created during user authentication,
+    // so choose the largest System Preferences window by overall size)
+    [matchingWindows sortedArrayUsingComparator:^NSComparisonResult(NSDictionary<NSString *, id> *window1, NSDictionary<NSString *, id> *window2) {
+        CFDictionaryRef bounds1 = (__bridge CFDictionaryRef)(window1[(__bridge NSString *)kCGWindowBounds]);
+        CFDictionaryRef bounds2 = (__bridge CFDictionaryRef)(window2[(__bridge NSString *)kCGWindowBounds]);
+
+        CGRect rect1 = CGRectZero;
+        CGRect rect2 = CGRectZero;
+        CGRectMakeWithDictionaryRepresentation(bounds1, &rect1);
+        CGRectMakeWithDictionaryRepresentation(bounds2, &rect2);
+
+        // AAAZZZ see if this is the correct order
+        return rect1.size.width * rect1.size.height > rect2.size.width * rect2.size.height ? NSOrderedDescending : NSOrderedAscending;
+    }];
+
+    NSDictionary<NSString *, id> *window = matchingWindows.firstObject;
+    if (!window) {
+        return;
+    }
+
+    CFNumberRef windowNumber = (__bridge CFNumberRef)(window[(__bridge NSString *)kCGWindowNumber]);
+    CFDictionaryRef bounds = (__bridge CFDictionaryRef)(window[(__bridge NSString *)kCGWindowBounds]);
+    CGRect rect = CGRectZero;
+    CGRectMakeWithDictionaryRepresentation(bounds, &rect);
+    // AAAZZZ update this for multi-monitor
+    NSScreen *screen = [NSScreen screens].firstObject;
+
+    CGRect frame = rect;
+    // Adjust origin.y from CGRect to NSRect coordinate system
+    frame.origin.y = screen.frame.size.height - frame.origin.y - frame.size.height;
+
+    CGRect borderFrame = CGRectInset(frame, -5.0, -5.0);
+    if (!CGRectEqualToRect(self.window.frame, borderFrame)) {
+        [self.window setFrame:borderFrame display:YES];
+    }
+    [self showWindow:nil];
+    [self.window orderWindow:NSWindowAbove relativeTo:(NSInteger)windowNumber];
 }
 
 @end
@@ -265,8 +305,6 @@ NAN_METHOD(WindowController::Show) {
   BorderWindowController *bwc = [[BorderWindowController alloc] init];
   obj->windowController_ = bwc;
   [bwc show];
-
-  // [[BorderWindowController sharedInstance] show];
 
   // dispatch_after(2.0, dispatch_get_main_queue(), ^{
     info.GetReturnValue().Set(obj->windowNumber_);
