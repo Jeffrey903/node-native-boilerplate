@@ -8,6 +8,7 @@ NAN_MODULE_INIT(WindowController::Init) {
   tpl->InstanceTemplate()->SetInternalFieldCount(1);
 
   Nan::SetPrototypeMethod(tpl, "show", Show);
+  Nan::SetPrototypeMethod(tpl, "hide", Hide);
 
   constructor.Reset(Nan::GetFunction(tpl).ToLocalChecked());
   Nan::Set(target, Nan::New("WindowController").ToLocalChecked(), Nan::GetFunction(tpl).ToLocalChecked());
@@ -34,5 +35,7 @@ NAN_METHOD(WindowController::New) {
 }
 
 NAN_METHOD(WindowController::Show) {
-  info.GetReturnValue().Set(1);
+}
+
+NAN_METHOD(WindowController::Hide) {
 }

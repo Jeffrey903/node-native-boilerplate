@@ -13,6 +13,7 @@ class WindowController : public Nan::ObjectWrap {
 
     static NAN_METHOD(New);
     static NAN_METHOD(Show);
+    static NAN_METHOD(Hide);
     static Nan::Persistent<v8::Function> constructor;
     pid_t windowNumber_;
     void *windowController_;

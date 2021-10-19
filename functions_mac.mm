@@ -35,13 +35,14 @@
 
 @interface BorderWindowController : NSWindowController
 
+@property (assign, nonatomic) NSInteger screenShareWindowNumber;
 @property (strong, nonatomic) NSTimer *timer;
 
 @end
 
 @implementation BorderWindowController
 
-- (instancetype)init
+- (instancetype)initWithScreenShareWindowNumber:(NSInteger)screenShareWindowNumber
 {
     BorderViewController *borderViewController = [[BorderViewController alloc] init];
     NSWindow *window = [NSWindow windowWithContentViewController:borderViewController];
@@ -52,50 +53,40 @@
 
     self = [super initWithWindow:window];
     if (self) {
-        self.timer = [NSTimer scheduledTimerWithTimeInterval:1.0/30.0 target:self selector:@selector(positionWindow) userInfo:nil repeats:YES];
+        self.screenShareWindowNumber = screenShareWindowNumber;
     }
     return self;
 }
 
 - (void)show
 {
-    NSLog(@"AAAZZZ show");
-    // [self.window setFrame:NSMakeRect(1000, 500, 300, 300) display:YES];
-    // [self showWindow:nil];
-    // // [self.window orderFrontRegardless];
-    // [self.window makeKeyAndOrderFront:nil];
-    NSLog(@"AAAZZZ show done");
+    [self.timer invalidate];
+    self.timer = [NSTimer scheduledTimerWithTimeInterval:1.0/30.0 target:self selector:@selector(positionWindow) userInfo:nil repeats:YES];
+}
+
+- (void)hide
+{
+    [self.timer invalidate];
+    self.timer = nil;
+    [self close];
 }
 
 - (void)positionWindow
 {
     NSArray<NSDictionary<NSString *, id> *> *windowList = CFBridgingRelease(CGWindowListCopyWindowInfo(kCGWindowListOptionOnScreenOnly, kCGNullWindowID));
 
-    NSMutableArray<NSDictionary<NSString *, id> *> *matchingWindows = [NSMutableArray array];
-    for (NSDictionary<NSString *, id> *window in windowList) {
-        NSString *ownerName = window[(__bridge NSString *)kCGWindowOwnerName];
-        if ([ownerName isEqual:@"System Preferences"]) {
-            [matchingWindows addObject:window];
+    NSDictionary<NSString *, id> *window = nil;
+    for (NSDictionary<NSString *, id> *w in windowList) {
+        CFNumberRef windowNumber = (__bridge CFNumberRef)(w[(__bridge NSString *)kCGWindowNumber]);
+        if (((__bridge NSNumber *)windowNumber).integerValue == self.screenShareWindowNumber) {
+            window = w;
+            break;
         }
     }
 
-    // Find the appropriate System Preferences window (multiple System Preferences windows
-    // may exist, such as when a second smaller window is created during user authentication,
-    // so choose the largest System Preferences window by overall size)
-    [matchingWindows sortedArrayUsingComparator:^NSComparisonResult(NSDictionary<NSString *, id> *window1, NSDictionary<NSString *, id> *window2) {
-        CFDictionaryRef bounds1 = (__bridge CFDictionaryRef)(window1[(__bridge NSString *)kCGWindowBounds]);
-        CFDictionaryRef bounds2 = (__bridge CFDictionaryRef)(window2[(__bridge NSString *)kCGWindowBounds]);
-
-        CGRect rect1 = CGRectZero;
-        CGRect rect2 = CGRectZero;
-        CGRectMakeWithDictionaryRepresentation(bounds1, &rect1);
-        CGRectMakeWithDictionaryRepresentation(bounds2, &rect2);
-
-        return rect1.size.width * rect1.size.height > rect2.size.width * rect2.size.height ? NSOrderedAscending : NSOrderedDescending;
-    }];
-
-    NSDictionary<NSString *, id> *window = matchingWindows.firstObject;
     if (!window) {
+        // If the screen share window can't be found, then close the border window, but don't
+        // invalidate the timer. The shared window may be minimized and may come back.
         [self close];
         return;
     }
@@ -104,7 +95,7 @@
     CFDictionaryRef bounds = (__bridge CFDictionaryRef)(window[(__bridge NSString *)kCGWindowBounds]);
     CGRect rect = CGRectZero;
     CGRectMakeWithDictionaryRepresentation(bounds, &rect);
-    // AAAZZZ update this for multi-monitor
+    // TODO: consider multiple monitors of different sizes
     NSScreen *screen = [NSScreen screens].firstObject;
 
     CGRect frame = rect;
@@ -131,6 +122,7 @@ NAN_MODULE_INIT(WindowController::Init) {
   tpl->InstanceTemplate()->SetInternalFieldCount(1);
 
   Nan::SetPrototypeMethod(tpl, "show", Show);
+  Nan::SetPrototypeMethod(tpl, "hide", Hide);
 
   constructor.Reset(Nan::GetFunction(tpl).ToLocalChecked());
   Nan::Set(target, Nan::New("WindowController").ToLocalChecked(), Nan::GetFunction(tpl).ToLocalChecked());
@@ -146,6 +138,7 @@ NAN_METHOD(WindowController::New) {
   if (info.IsConstructCall()) {
     pid_t windowNumber = info[0]->IsUndefined() ? 0 : Nan::To<double>(info[0]).FromJust();
     WindowController *obj = new WindowController(windowNumber);
+    obj->windowController_ = [[BorderWindowController alloc] initWithScreenShareWindowNumber:windowNumber];
     obj->Wrap(info.This());
     info.GetReturnValue().Set(info.This());
   } else {
@@ -158,17 +151,14 @@ NAN_METHOD(WindowController::New) {
 
 NAN_METHOD(WindowController::Show) {
   WindowController* obj = Nan::ObjectWrap::Unwrap<WindowController>(info.This());
-  // obj->value_ += 1;
-  // info.GetReturnValue().Set(obj->value_);
-  // [obj->windowController_ show];
 
-  // [[[BorderWindowController alloc] init] show];
-
-  BorderWindowController *bwc = [[BorderWindowController alloc] init];
-  obj->windowController_ = bwc;
+  BorderWindowController *bwc = (BorderWindowController *)obj->windowController_;
   [bwc show];
+}
 
-  // dispatch_after(2.0, dispatch_get_main_queue(), ^{
-    info.GetReturnValue().Set(obj->windowNumber_);
-  // });
+NAN_METHOD(WindowController::Hide) {
+  WindowController* obj = Nan::ObjectWrap::Unwrap<WindowController>(info.This());
+
+  BorderWindowController *bwc = (BorderWindowController *)obj->windowController_;
+  [bwc hide];
 }
