@@ -6,8 +6,10 @@ using v8::FunctionTemplate;
 // C++ constructs that are exposed to javascript are exported here
 
 NAN_MODULE_INIT(InitAll) {
-  // Passing target down to the next NAN_MODULE_INIT
-  WindowController::Init(target);
+  Nan::Set(target, Nan::New("show").ToLocalChecked(),
+    Nan::GetFunction(Nan::New<FunctionTemplate>(show)).ToLocalChecked());
+  Nan::Set(target, Nan::New("hide").ToLocalChecked(),
+    Nan::GetFunction(Nan::New<FunctionTemplate>(hide)).ToLocalChecked());
 }
 
 NODE_MODULE(NativeExtension, InitAll)

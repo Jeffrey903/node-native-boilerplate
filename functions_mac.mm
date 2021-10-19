@@ -42,7 +42,18 @@
 
 @implementation BorderWindowController
 
-- (instancetype)initWithScreenShareWindowNumber:(NSInteger)screenShareWindowNumber
++ (instancetype)sharedInstance
+{
+    static id _sharedInstance = nil;
+    static dispatch_once_t onceToken;
+    dispatch_once(&onceToken, ^{
+        _sharedInstance = [[self alloc] init];
+    });
+
+    return _sharedInstance;
+}
+
+- (instancetype)init
 {
     BorderViewController *borderViewController = [[BorderViewController alloc] init];
     NSWindow *window = [NSWindow windowWithContentViewController:borderViewController];
@@ -52,15 +63,14 @@
     window.collectionBehavior = NSWindowCollectionBehaviorTransient;
 
     self = [super initWithWindow:window];
-    if (self) {
-        self.screenShareWindowNumber = screenShareWindowNumber;
-    }
     return self;
 }
 
-- (void)show
+- (void)showWithScreenShareWindowNumber:(NSInteger)screenShareWindowNumber
 {
     [self.timer invalidate];
+
+    self.screenShareWindowNumber = screenShareWindowNumber;
     self.timer = [NSTimer scheduledTimerWithTimeInterval:1.0/30.0 target:self selector:@selector(positionWindow) userInfo:nil repeats:YES];
 }
 
@@ -114,51 +124,11 @@
 
 //
 
-Nan::Persistent<v8::Function> WindowController::constructor;
-
-NAN_MODULE_INIT(WindowController::Init) {
-  v8::Local<v8::FunctionTemplate> tpl = Nan::New<v8::FunctionTemplate>(New);
-  tpl->SetClassName(Nan::New("WindowController").ToLocalChecked());
-  tpl->InstanceTemplate()->SetInternalFieldCount(1);
-
-  Nan::SetPrototypeMethod(tpl, "show", Show);
-  Nan::SetPrototypeMethod(tpl, "hide", Hide);
-
-  constructor.Reset(Nan::GetFunction(tpl).ToLocalChecked());
-  Nan::Set(target, Nan::New("WindowController").ToLocalChecked(), Nan::GetFunction(tpl).ToLocalChecked());
+NAN_METHOD(show) {
+    int windowNumber = Nan::To<int>(info[0]).FromJust();
+    [[BorderWindowController sharedInstance] showWithScreenShareWindowNumber:windowNumber];
 }
 
-WindowController::WindowController(pid_t windowNumber) : windowNumber_(windowNumber) {
-}
-
-WindowController::~WindowController() {
-}
-
-NAN_METHOD(WindowController::New) {
-  if (info.IsConstructCall()) {
-    pid_t windowNumber = info[0]->IsUndefined() ? 0 : Nan::To<double>(info[0]).FromJust();
-    WindowController *obj = new WindowController(windowNumber);
-    obj->windowController_ = [[BorderWindowController alloc] initWithScreenShareWindowNumber:windowNumber];
-    obj->Wrap(info.This());
-    info.GetReturnValue().Set(info.This());
-  } else {
-    const int argc = 1;
-    v8::Local<v8::Value> argv[argc] = {info[0]};
-    v8::Local<v8::Function> cons = Nan::New(constructor);
-    info.GetReturnValue().Set(Nan::NewInstance(cons, argc, argv).ToLocalChecked());
-  }
-}
-
-NAN_METHOD(WindowController::Show) {
-  WindowController* obj = Nan::ObjectWrap::Unwrap<WindowController>(info.This());
-
-  BorderWindowController *bwc = (BorderWindowController *)obj->windowController_;
-  [bwc show];
-}
-
-NAN_METHOD(WindowController::Hide) {
-  WindowController* obj = Nan::ObjectWrap::Unwrap<WindowController>(info.This());
-
-  BorderWindowController *bwc = (BorderWindowController *)obj->windowController_;
-  [bwc hide];
+NAN_METHOD(hide) {
+    [[BorderWindowController sharedInstance] hide];
 }
