@@ -1,15 +1,3 @@
-# {
-#     "targets": [
-#         {
-#             "target_name": "NativeExtension",
-#             "sources": [ "NativeExtension.cc", "functions.mm" ],
-#             "include_dirs" : [
-#                 "<!(node -e \"require('nan')\")"
-#             ]
-#         }
-#     ],
-# }
-
 {
   "targets": [
     { "target_name": "" }
@@ -18,7 +6,7 @@
     ['OS=="mac"', {
       "targets": [{
         "target_name": "NativeExtension",
-        "sources": ["NativeExtension.cc", "functions.mm"],
+        "sources": ["NativeExtension.cc", "functions_mac.mm"],
         "link_settings": {
           "libraries": [
             "$(SDKROOT)/System/Library/Frameworks/Cocoa.framework",
@@ -28,6 +16,15 @@
           "<!(node -e \"require('nan')\")"
         ]
       }]
-    }]
+    }],
+    ['OS!="mac"', {
+      "targets": [{
+        "target_name": "NativeExtension",
+        "sources": ["NativeExtension.cc", "functions_stub.cc"],
+        "include_dirs": [
+          "<!(node -e \"require('nan')\")"
+        ]
+      }]
+    }],
   ]
 }
